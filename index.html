@@ -21,6 +21,56 @@
             100% { transform: rotate(0); }
         }
         .animate-ring { animation: ring 1.5s ease infinite; }
+        <style>
+  :root{
+    --bg1:#EEF2FF;   /* indigo-50 */
+    --bg2:#FDF2F8;   /* pink-50 */
+    --bg3:#ECFEFF;   /* cyan-50 */
+  }
+  /* 漸層底 + 柔霧噪點 */
+  body{
+    background: radial-gradient(1200px 800px at 10% -10%, var(--bg1) 0%, transparent 60%),
+                radial-gradient(1000px 700px at 110% 10%, var(--bg2) 0%, transparent 55%),
+                radial-gradient(900px 600px at 40% 110%, var(--bg3) 0%, transparent 55%),
+                linear-gradient(#f8fafc, #f8fafc);
+  }
+  .noise::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:.06;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+
+  /* Header 玻璃感 */
+  .glass{
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(15,23,42,.06);
+  }
+
+  /* 卡片更像 iOS App */
+  .card{
+    border: 1px solid rgba(148,163,184,.25);
+    box-shadow: 0 18px 45px rgba(2,6,23,.06);
+  }
+  .card-soft{
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* 按鈕微立體 */
+  .btn-primary{
+    box-shadow: 0 14px 28px rgba(79,70,229,.18);
+  }
+  .btn-dark{
+    box-shadow: 0 18px 40px rgba(2,6,23,.14);
+  }
+</style>
     </style>
     <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#4f46e5">
