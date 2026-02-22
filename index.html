@@ -829,6 +829,7 @@
     };
 
     // 結案（照片 base64）
+// 結案（照片 base64）
 window.startCompletion = async (input, id) => {
   const file = input.files[0];
   if (!file) return;
@@ -857,7 +858,7 @@ document.getElementById('confirm-completion-btn').onclick = async () => {
   const modal = document.getElementById('completion-modal');
   const btn = document.getElementById('confirm-completion-btn');
 
-  // ✅ 先把資料備份起來（避免後面被清掉）
+  // ✅ 先把資料備份起來
   const id = pendingCompletionId;
   const url = pendingCompletionUrl || null;
 
@@ -869,7 +870,7 @@ document.getElementById('confirm-completion-btn').onclick = async () => {
   const oldText = btn.innerText;
   btn.innerText = "結案中...";
 
-  // ✅ 先清狀態（避免 onSnapshot 更新時又被重開）
+  // ✅ 先清狀態（避免狀態殘留）
   pendingCompletionId = null;
   pendingCompletionUrl = null;
 
@@ -883,12 +884,12 @@ document.getElementById('confirm-completion-btn').onclick = async () => {
       imageUrl: url
     });
 
-    // ✅ 成功：再保險關一次（避免某些 iOS 異常）
+    // ✅ 成功：保險關一次（iOS 偶發）
     modal.classList.add('hidden');
   } catch (e) {
     console.error("確認結案失敗:", e);
 
-    // ❌ 失敗：把視窗打開讓你重試
+    // ❌ 失敗：把狀態放回去，讓你重試
     pendingCompletionId = id;
     pendingCompletionUrl = url;
     modal.classList.remove('hidden');
@@ -900,22 +901,12 @@ document.getElementById('confirm-completion-btn').onclick = async () => {
   }
 };
 
-    // ✅ 成功：一定關視窗 + 清狀態
-    document.getElementById('completion-modal').classList.add('hidden');
-    pendingCompletionId = null;
-    pendingCompletionUrl = null;
-  } catch (e) {
-    console.error("確認結案失敗:", e);
-    alert("結案失敗（通常是照片太大或 Firestore 權限/網路問題）。\n我已幫你加壓縮，請再試一次。");
-  } finally {
-    btn.disabled = false;
-    btn.innerText = oldText;
-  }
+document.getElementById('cancel-completion-btn').onclick = () => {
+  document.getElementById('completion-modal').classList.add('hidden');
+  // ✅ 取消也順便清掉暫存
+  pendingCompletionId = null;
+  pendingCompletionUrl = null;
 };
-
-    document.getElementById('cancel-completion-btn').onclick = () => {
-      document.getElementById('completion-modal').classList.add('hidden');
-    };
 
     // 刪任務
     window.deleteMemo = async (id) => {
