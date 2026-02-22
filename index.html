@@ -299,7 +299,7 @@
     }
 
     box.innerHTML = logs.map((log) => {
-      const isMine = log.userId === currentUser?.uid;
+      const isMine = (log.userId || log.uid) === currentUser?.uid;
       const safeText = (log.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const hasImg = !!log.img;
 
@@ -454,31 +454,32 @@
   }
 
   // --- 全域：新增進度（寫入 logs 子集合） ---
-  window.addLogEntry = async (memoId) => {
-    const textEl = document.getElementById(`log-text-${memoId}`);
-    const text = textEl.value;
-    if (!text.trim()) return;
+window.addLogEntry = async (memoId) => {
+  const textEl = document.getElementById(`log-text-${memoId}`);
+  const text = textEl.value;
+  if (!text.trim()) return;
 
-    try {
-      const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+  try {
+    const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
 
-      await addDoc(logsRef, {
-        text: text.trim(),
-        timestamp: Date.now(),
-        userId: currentUser.uid,
-        userName: currentUser.displayName || '同仁',
-        img: window[`log_img_${memoId}`] || null
-      });
+    await addDoc(logsRef, {
+      text: text.trim(),
+      timestamp: Date.now(),
+      userId: currentUser.uid,                 // ✅ 必須有
+      userName: currentUser.displayName || '同仁',
+      img: window[`log_img_${memoId}`] || null
+    });
 
-      window.clearLogImg(memoId);
-      textEl.value = '';
-      toggleLogInput(memoId, false);
-      loadLogs(memoId);
-    } catch (e) {
-      console.error("送出進度失敗:", e);
-      alert("送出失敗（可能是圖片太大/網路/權限問題），請再試一次");
-    }
-  };
+    window.clearLogImg(memoId);
+    textEl.value = '';
+    toggleLogInput(memoId, false);
+    loadLogs(memoId);
+
+  } catch (e) {
+    console.error("送出進度失敗:", e);
+    alert("送出失敗（可能是權限/網路/圖片太大），請再試一次");
+  }
+};
 
   // --- UI: log input 開關 ---
   window.toggleLogInput = (id, show) => {
