@@ -1,771 +1,956 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多人公務交接日誌</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-<style>
-  :root{
-    --bg1:#EEF2FF;   /* indigo-50 */
-    --bg2:#FDF2F8;   /* pink-50 */
-    --bg3:#ECFEFF;   /* cyan-50 */
-  }
-  /* 漸層底 + 柔霧噪點 */
-  body{
-    background: radial-gradient(1200px 800px at 10% -10%, var(--bg1) 0%, transparent 60%),
-                radial-gradient(1000px 700px at 110% 10%, var(--bg2) 0%, transparent 55%),
-                radial-gradient(900px 600px at 40% 110%, var(--bg3) 0%, transparent 55%),
-                linear-gradient(#f8fafc, #f8fafc);
-  }
-  .noise::before{
-    content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    opacity:.06;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
-    mix-blend-mode: multiply;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>多人公務交接日誌</title>
 
-  /* Header 玻璃感 */
-  .glass{
-    background: rgba(255,255,255,.72);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(15,23,42,.06);
-  }
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 
-  /* 卡片更像 iOS App */
-  .card{
-    border: 1px solid rgba(148,163,184,.25);
-    box-shadow: 0 18px 45px rgba(2,6,23,.06);
-  }
-  .card-soft{
-    background: rgba(255,255,255,.78);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
 
-  /* 按鈕微立體 */
-  .btn-primary{
-    box-shadow: 0 14px 28px rgba(79,70,229,.18);
-  }
-  .btn-dark{
-    box-shadow: 0 18px 40px rgba(2,6,23,.14);
-  }
-</style>
-    <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#4f46e5">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+    :root{
+      /* 商務冷灰（帶一點藍） */
+      --bg0:#F4F6F9;
+      --bg1:#EEF2F7;
+      --bg2:#E9EEF6;
+
+      --card:#FFFFFF;
+      --card2: rgba(255,255,255,.86);
+      --border: rgba(15,23,42,.08);
+
+      --shadow: 0 18px 45px rgba(2,6,23,.08);
+      --shadow2: 0 10px 24px rgba(2,6,23,.06);
+
+      --ink:#0F172A;
+      --muted:#64748B;
+      --muted2:#94A3B8;
+
+      --brand:#4F46E5; /* indigo */
+      --brandSoft: rgba(79,70,229,.10);
+
+      --danger:#E11D48;
+      --success:#059669;
+    }
+
+    body{
+      font-family: 'Noto Sans TC', sans-serif;
+      background:
+        radial-gradient(1200px 800px at 15% -10%, var(--bg2) 0%, transparent 55%),
+        radial-gradient(1000px 700px at 115% 8%, var(--bg1) 0%, transparent 55%),
+        linear-gradient(var(--bg0), var(--bg0));
+      color: var(--ink);
+    }
+
+    /* 柔霧噪點（商務淡一點） */
+    .noise::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.045;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+      mix-blend-mode: multiply;
+    }
+
+    /* Header 玻璃感（商務版） */
+    .glass{
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 卡片 */
+    .card{
+      background: var(--card2);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .card-flat{
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow2);
+    }
+
+    /* 讓虛線卡更乾淨 */
+    .dashed{
+      border-style: dashed;
+      border-color: rgba(100,116,139,.25);
+    }
+
+    /* 小徽章 */
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.375rem;
+      padding:.35rem .6rem;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.75);
+      color: var(--muted);
+    }
+    .badge-live{
+      background: rgba(79,70,229,.10);
+      border-color: rgba(79,70,229,.18);
+      color: rgba(67,56,202,1);
+    }
+    .badge-done{
+      background: rgba(5,150,105,.10);
+      border-color: rgba(5,150,105,.18);
+      color: rgba(5,150,105,1);
+    }
+
+    /* Toast 動畫 */
+    .toast-enter { animation: slideInDown 0.5s; }
+
+    @keyframes ring {
+      0% { transform: rotate(0); }
+      10% { transform: rotate(15deg); }
+      20% { transform: rotate(-15deg); }
+      30% { transform: rotate(10deg); }
+      40% { transform: rotate(-10deg); }
+      50% { transform: rotate(0); }
+      100% { transform: rotate(0); }
+    }
+    .animate-ring { animation: ring 1.5s ease infinite; }
+
+    /* 讓按鈕看起來更商務 */
+    .btn-primary{
+      background: var(--brand);
+      color: #fff;
+      box-shadow: 0 16px 32px rgba(79,70,229,.20);
+    }
+    .btn-dark{
+      background: #0B1220;
+      color: #fff;
+      box-shadow: 0 18px 40px rgba(2,6,23,.16);
+    }
+    .btn-soft{
+      background: rgba(15,23,42,.06);
+      color: rgba(15,23,42,.70);
+      border: 1px solid rgba(15,23,42,.06);
+    }
+
+  </style>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0B1220">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
-<body class="bg-slate-50 text-slate-900 pb-24">
 
-    <!-- 即時通知容器 -->
-    <div id="notification-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[300] w-[90%] max-w-sm pointer-events-none"></div>
+<body class="noise pb-24">
+  <!-- 即時通知容器 -->
+  <div id="notification-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[300] w-[90%] max-w-sm pointer-events-none"></div>
 
-    <!-- 登入畫面 -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 shadow-2xl border border-white text-center">
-            <div class="bg-indigo-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            </div>
-            <h1 class="text-2xl font-black text-slate-800 mb-2">公務交接日誌</h1>
-            <p class="text-slate-400 text-sm mb-10">請使用 Google 帳號登入<br/>紀錄將永久同步至雲端</p>
-            <button id="google-login-btn" class="w-full bg-white border-2 border-slate-100 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-6 h-6" alt="Google">
-                使用 Google 帳號登入
-            </button>
+  <!-- 登入畫面 -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 hidden">
+    <div class="card w-full max-w-sm rounded-[3rem] p-10 text-center">
+      <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-white"
+           style="background:linear-gradient(135deg, #0B1220, #334155); box-shadow: 0 18px 45px rgba(2,6,23,.18);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-black mb-2" style="color:var(--ink)">公務交接日誌</h1>
+      <p class="text-sm mb-10 leading-relaxed" style="color:var(--muted)">
+        請使用 Google 帳號登入<br/>紀錄將永久同步至雲端
+      </p>
+
+      <button id="google-login-btn"
+        class="w-full bg-white border py-4 rounded-2xl flex items-center justify-center gap-3 font-black hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+        style="border-color:var(--border); color:var(--ink)">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-6 h-6" alt="Google">
+        使用 Google 帳號登入
+      </button>
+
+      <p class="mt-6 text-[11px] font-bold" style="color:var(--muted2)">
+        建議：登入一次後，下次開啟會自動保留登入狀態
+      </p>
+    </div>
+  </div>
+
+  <!-- 主程式介面 -->
+  <div id="main-app" class="hidden">
+    <header class="glass sticky top-0 z-40 px-6 py-5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-xl text-white"
+             style="background:linear-gradient(135deg,#0B1220,#334155); box-shadow: 0 14px 28px rgba(2,6,23,.18);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
         </div>
-    </div>
-
-    <!-- 主程式介面 -->
-    <div id="main-app" class="hidden">
-        <header class="bg-white/80 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-5 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-100 text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                </div>
-                <h1 class="text-xl font-black text-slate-800 tracking-tighter">多人公務日誌</h1>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="flex flex-col items-end hidden sm:flex">
-                    <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Current User</span>
-                    <span id="display-name" class="text-xs font-black text-indigo-700">載入中...</span>
-                </div>
-                <button id="settings-btn" class="w-10 h-10 rounded-2xl overflow-hidden border-2 border-indigo-50 shadow-sm active:scale-90 transition-all bg-indigo-100">
-                    <img id="user-avatar" src="" class="w-full h-full object-cover hidden">
-                    <div id="avatar-placeholder" class="w-full h-full flex items-center justify-center text-indigo-500 font-bold">U</div>
-                </button>
-            </div>
-        </header>
-
-        <main class="max-w-md mx-auto p-4 space-y-6">
-            <!-- 新增按鈕 -->
-            <div id="add-task-container">
-                <button id="show-add-task-btn" class="group w-full bg-white border-2 border-dashed border-slate-200 rounded-3xl py-8 flex flex-col items-center justify-center gap-2 hover:border-indigo-400 transition-all active:scale-95 shadow-sm">
-                    <div class="bg-slate-50 p-3 rounded-2xl group-hover:bg-indigo-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 group-hover:text-indigo-500"><path d="M12 5v14M5 12h14"/></svg>
-                    </div>
-                    <span class="font-bold text-slate-400 group-hover:text-indigo-600">新增交接項目</span>
-                </button>
-
-                <div id="add-task-form" class="bg-white p-6 rounded-[2rem] shadow-2xl border border-indigo-50 hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <span class="bg-indigo-600 text-white text-[10px] px-3 py-1 rounded-full font-black uppercase">New Task</span>
-                        <button id="cancel-add-task-btn" class="text-slate-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-                    </div>
-                    <input id="new-task-title" type="text" placeholder="任務名稱" class="w-full p-4 bg-slate-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/10 mb-6 text-lg font-bold">
-                    <button id="submit-task-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100">建立任務</button>
-                </div>
-            </div>
-
-            <!-- 任務列表 -->
-            <div id="memos-list" class="space-y-8 pb-20">
-                <!-- 動態注入內容 -->
-            </div>
-        </main>
-    </div>
-
-    <!-- 設定彈窗 -->
-    <div id="settings-modal" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl text-center">
-            <div class="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto mb-6 overflow-hidden border">
-                <img id="modal-user-avatar" src="" class="w-full h-full object-cover hidden">
-                <div id="modal-avatar-placeholder" class="text-indigo-600 font-black text-2xl">?</div>
-            </div>
-            <h2 class="text-xl font-black text-slate-800 mb-6">個人設定</h2>
-
-            <button id="system-notification-btn" class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 border-2 bg-white border-slate-100 text-slate-600 mb-4 transition-all">
-                啟動系統通知
-            </button>
-            <button id="logout-btn" class="w-full bg-rose-50 text-rose-600 py-4 rounded-2xl font-black mb-4">登出帳號</button>
-            <button id="close-settings-btn" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-black">關閉</button>
-        </div>
-    </div>
-
-    <!-- 結案預覽彈窗 -->
-    <div id="completion-modal" class="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl">
-            <div class="bg-indigo-600 p-4 text-white flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                <span class="font-black text-sm uppercase">結案確認</span>
-            </div>
-            <div class="p-6">
-                <p class="text-slate-600 text-sm font-bold mb-4">請確認結案照片是否正確？</p>
-                <div class="rounded-2xl overflow-hidden border border-slate-100 mb-6 aspect-video bg-slate-100 flex items-center justify-center">
-                    <img id="completion-preview-img" src="" class="w-full h-full object-cover">
-                </div>
-                <div class="flex gap-3">
-                    <button id="confirm-completion-btn" class="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100">確認結案</button>
-                    <button id="cancel-completion-btn" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-2xl font-black">取消</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 圖片放大 -->
-    <div id="full-image-modal" class="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center p-6 hidden" onclick="this.classList.add('hidden')">
-        <img id="full-image" src="" class="max-w-full max-h-[85vh] object-contain rounded-3xl shadow-2xl">
-        <p class="mt-8 text-white/40 text-xs font-black uppercase tracking-widest">點擊任意處關閉</p>
-    </div>
-
-    <!-- Firebase Scripts -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import {
-    getFirestore, collection, doc, addDoc, onSnapshot, updateDoc, deleteDoc,
-    getDocs, query, orderBy
-  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-  // ✅ Firebase 設定
-  const firebaseConfig = {
-    apiKey: "AIzaSyBPUk9cyWn_xP1MgBd2a47jW8hf9whHX-I",
-    authDomain: "handover-app-197ba.firebaseapp.com",
-    projectId: "handover-app-197ba",
-    storageBucket: "handover-app-197ba.firebasestorage.app",
-    messagingSenderId: "458604325752",
-    appId: "1:458604325752:web:7ee5742c7944552db6b68d"
-  };
-
-  // ✅ 固定共享 appId（所有帳號看到同一份資料）
-  const appId = "handover-shared-v1";
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  let currentUser = null;
-  let memos = [];
-  let isFirstLoad = true;
-  let previousMemos = [];
-  let pendingCompletionId = null;
-  let pendingCompletionUrl = null;
-
-  const loginScreen = document.getElementById('login-screen');
-  const mainApp = document.getElementById('main-app');
-  const memosList = document.getElementById('memos-list');
-  const addTaskForm = document.getElementById('add-task-form');
-  const showAddTaskBtn = document.getElementById('show-add-task-btn');
-  const notificationContainer = document.getElementById('notification-container');
-
-  // ✅ 圖片壓縮：避免 Firestore 1MB 限制
-  async function compressImageToDataURL(file, maxW = 1280, maxH = 1280, quality = 0.75) {
-    const dataURL = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    const img = await new Promise((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = reject;
-      i.src = dataURL;
-    });
-
-    const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
-    const targetW = Math.round(img.width * ratio);
-    const targetH = Math.round(img.height * ratio);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, targetW, targetH);
-
-    return canvas.toDataURL("image/jpeg", quality);
-  }
-
-  function formatTime(ts) {
-    const d = new Date(ts);
-    return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
-  }
-
-  // Auth
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      currentUser = user;
-      loginScreen.classList.add('hidden');
-      mainApp.classList.remove('hidden');
-      updateUserUI();
-      initDataListener();
-    } else {
-      currentUser = null;
-      loginScreen.classList.remove('hidden');
-      mainApp.classList.add('hidden');
-    }
-  });
-
-  document.getElementById('google-login-btn').onclick = () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch(err => console.error(err));
-  };
-
-  document.getElementById('logout-btn').onclick = () => {
-    signOut(auth);
-    document.getElementById('settings-modal').classList.add('hidden');
-  };
-
-  function updateUserUI() {
-    document.getElementById('display-name').innerText = currentUser.displayName || '同仁';
-    if (currentUser.photoURL) {
-      document.getElementById('user-avatar').src = currentUser.photoURL;
-      document.getElementById('user-avatar').classList.remove('hidden');
-      document.getElementById('avatar-placeholder').classList.add('hidden');
-
-      document.getElementById('modal-user-avatar').src = currentUser.photoURL;
-      document.getElementById('modal-user-avatar').classList.remove('hidden');
-      document.getElementById('modal-avatar-placeholder').classList.add('hidden');
-    }
-  }
-
-  // ✅ 任務監聽（memos）
-  function initDataListener() {
-    const memoCollection = collection(db, 'artifacts', appId, 'public', 'data', 'memos');
-
-    onSnapshot(memoCollection, (snapshot) => {
-      const currentData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      if (!isFirstLoad) {
-        snapshot.docChanges().forEach(change => {
-          const data = change.doc.data();
-          if (data.createdBy !== currentUser.uid && change.type === "added") {
-            showToast("🆕 新公務事項", `${data.creatorName} 新增了：${data.title}`);
-          }
-          if (change.type === "modified") {
-            showToast("🔄 任務更新", `${data.title}`);
-          }
-        });
-      }
-
-      memos = currentData.sort((a, b) => {
-        if (a.completed === b.completed) return b.createdAt - a.createdAt;
-        return a.completed ? 1 : -1;
-      });
-
-      previousMemos = currentData;
-      isFirstLoad = false;
-      renderMemos();
-    }, (err) => {
-      console.error("Firestore 監聽錯誤：", err);
-      alert("資料同步失敗（可能是 Firestore 權限/規則問題）");
-    });
-  }
-
-  // ✅ 載入 logs 子集合（每則備註一份文件，才能編輯單筆）
-  async function loadLogs(memoId) {
-    const box = document.getElementById(`logs-box-${memoId}`);
-    if (!box) return;
-
-    const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
-    const q = query(logsRef, orderBy('timestamp', 'asc'));
-    const snap = await getDocs(q);
-
-    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    if (!logs.length) {
-      box.innerHTML = '<p class="text-[10px] text-slate-300 italic text-center">目前尚無進度備註</p>';
-      return;
-    }
-
-    box.innerHTML = logs.map((log) => {
-      const isMine = (log.userId || log.uid) === currentUser?.uid;
-      const safeText = (log.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const hasImg = !!log.img;
-
-      return `
-      <div class="flex gap-4">
-        <div class="flex flex-col items-center">
-          <div class="w-2 h-2 rounded-full ${isMine ? 'bg-indigo-600' : 'bg-slate-300'}"></div>
-        </div>
-
-        <div class="flex-1 bg-white p-3 rounded-2xl shadow-sm border border-slate-50">
-          <div class="flex justify-between text-[10px] mb-1">
-            <span class="font-black text-indigo-600">${log.userName || '同仁'}</span>
-            <span class="text-slate-300">${formatTime(log.timestamp || Date.now())}</span>
-          </div>
-
-          <div class="flex items-start gap-2">
-            <p class="text-sm font-medium text-slate-700 flex-1" id="log-text-view-${memoId}-${log.id}">
-              ${safeText}
-            </p>
-
-            ${isMine ? `
-              <div class="flex gap-2 text-[11px] font-black shrink-0">
-                <button class="text-indigo-600" onclick="startEditLog('${memoId}','${log.id}')">編輯</button>
-                <button class="text-rose-500" onclick="deleteLog('${memoId}','${log.id}')">刪除</button>
-              </div>
-            ` : ``}
-          </div>
-
-          ${hasImg ? `
-            <img src="${log.img}" class="mt-2 rounded-lg w-full h-24 object-cover cursor-pointer" onclick="viewImage('${log.img}')">
-          ` : ``}
-
-          ${isMine ? `
-          <div id="log-edit-box-${memoId}-${log.id}" class="hidden mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
-            <label class="text-[10px] font-black text-slate-400 block mb-2">編輯內容</label>
-            <textarea class="w-full text-sm p-3 bg-white rounded-2xl focus:outline-none min-h-[70px] border border-slate-100"
-              id="log-text-edit-${memoId}-${log.id}"></textarea>
-
-            <div class="mt-3">
-              <label class="text-[10px] font-black text-slate-400 block mb-2">編輯圖片（可更換/移除）</label>
-
-              <div class="flex items-center gap-2">
-                <label class="px-3 py-2 bg-indigo-50 text-indigo-700 rounded-xl cursor-pointer text-xs font-black">
-                  選擇圖片
-                  <input type="file" accept="image/*" class="hidden" onchange="previewEditImg(this,'${memoId}','${log.id}')">
-                </label>
-
-                <button class="px-3 py-2 bg-slate-200 text-slate-600 rounded-xl text-xs font-black"
-                  onclick="removeEditImg('${memoId}','${log.id}')">移除圖片</button>
-
-                <span class="text-[11px] font-bold text-slate-400" id="edit-img-hint-${memoId}-${log.id}">
-                  ${hasImg ? '目前有圖片' : '目前無圖片'}
-                </span>
-              </div>
-
-              <div id="edit-img-preview-box-${memoId}-${log.id}" class="${hasImg ? '' : 'hidden'} mt-2 relative w-24 h-24">
-                <img id="edit-img-preview-${memoId}-${log.id}" src="${hasImg ? log.img : ''}" class="w-full h-full object-cover rounded-xl border border-slate-200">
-              </div>
-            </div>
-
-            <div class="flex gap-2 mt-3">
-              <button class="flex-1 bg-indigo-600 text-white font-black rounded-xl py-2"
-                onclick="saveLogEdit('${memoId}','${log.id}')">儲存</button>
-              <button class="px-4 text-slate-500 font-black"
-                onclick="cancelLogEdit('${memoId}','${log.id}')">取消</button>
-            </div>
-          </div>
-          ` : ``}
+        <div class="flex flex-col">
+          <h1 class="text-xl font-black tracking-tight" style="color:var(--ink)">多人公務日誌</h1>
+          <span class="text-[11px] font-bold" style="color:var(--muted2)">冷灰商務版 · 同步雲端</span>
         </div>
       </div>
-      `;
-    }).join('');
-  }
 
-  // ✅ render memos
-  function renderMemos() {
-    memosList.innerHTML = '';
+      <div class="flex items-center gap-3">
+        <div class="flex flex-col items-end hidden sm:flex">
+          <span class="text-[10px] font-black uppercase tracking-widest" style="color:var(--muted2)">Current User</span>
+          <span id="display-name" class="text-xs font-black" style="color:var(--ink)">載入中...</span>
+        </div>
 
-    memos.forEach(memo => {
-      const card = document.createElement('div');
-      card.className = `bg-white rounded-[2.5rem] overflow-hidden shadow-sm border transition-all ${memo.completed ? 'opacity-70 border-slate-100' : 'border-white ring-1 ring-slate-100 shadow-xl shadow-slate-200/40 animate__animated animate__fadeIn'}`;
+        <button id="settings-btn"
+          class="w-10 h-10 rounded-2xl overflow-hidden border shadow-sm active:scale-90 transition-all bg-white"
+          style="border-color:var(--border)">
+          <img id="user-avatar" src="" class="w-full h-full object-cover hidden">
+          <div id="avatar-placeholder" class="w-full h-full flex items-center justify-center font-black"
+               style="color:var(--muted)">U</div>
+        </button>
+      </div>
+    </header>
 
-      card.innerHTML = `
-        <div class="p-6 border-b border-slate-50 flex justify-between">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              ${memo.completed ? '<svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>' : '<div class="w-3 h-3 bg-indigo-600 rounded-full animate-pulse"></div>'}
-              <h3 class="font-black text-xl tracking-tight ${memo.completed ? 'text-slate-400 line-through' : ''}">${memo.title}</h3>
-            </div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase">發起: ${memo.creatorName || '同仁'} / ${formatTime(memo.createdAt || Date.now())}</div>
+    <main class="max-w-md mx-auto p-4 space-y-6">
+      <!-- 新增按鈕 -->
+      <div id="add-task-container">
+        <button id="show-add-task-btn"
+          class="group w-full card-flat dashed rounded-3xl py-8 flex flex-col items-center justify-center gap-2 hover:scale-[1.01] transition-all active:scale-95">
+          <div class="p-3 rounded-2xl"
+               style="background:rgba(15,23,42,.05); color:rgba(15,23,42,.55)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
           </div>
-          <button class="text-slate-200 hover:text-rose-500 transition-colors" onclick="deleteMemo('${memo.id}')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          <span class="font-black" style="color:var(--muted)">新增交接項目</span>
+          <span class="text-[11px] font-bold" style="color:var(--muted2)">用同一份雲端清單多人協作</span>
+        </button>
+
+        <div id="add-task-form" class="card rounded-[2rem] p-6 hidden animate__animated animate__fadeInUp">
+          <div class="flex justify-between items-center mb-6">
+            <span class="badge badge-live">NEW TASK</span>
+            <button id="cancel-add-task-btn" class="text-slate-400 hover:text-slate-600">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <input id="new-task-title" type="text" placeholder="任務名稱"
+            class="w-full p-4 rounded-2xl focus:outline-none focus:ring-2 mb-6 text-lg font-black"
+            style="background:rgba(15,23,42,.04); color:var(--ink); border:1px solid rgba(15,23,42,.06);"
+          />
+
+          <button id="submit-task-btn"
+            class="w-full py-4 rounded-2xl font-black text-lg btn-primary active:scale-[0.99] transition-all">
+            建立任務
           </button>
         </div>
+      </div>
 
-        <div class="bg-slate-50/50 p-6 space-y-6">
-          <div class="text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">交接日誌</div>
+      <!-- 任務列表 -->
+      <div id="memos-list" class="space-y-8 pb-20">
+        <!-- 動態注入 -->
+      </div>
+    </main>
+  </div>
 
-          <div class="space-y-4" id="logs-box-${memo.id}">
-            <p class="text-[10px] text-slate-300 italic text-center">載入中...</p>
-          </div>
+  <!-- 設定彈窗 -->
+  <div id="settings-modal" class="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6 hidden">
+    <div class="card w-full max-w-sm rounded-[2.5rem] p-8 text-center">
+      <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 overflow-hidden border bg-white"
+           style="border-color:var(--border)">
+        <img id="modal-user-avatar" src="" class="w-full h-full object-cover hidden">
+        <div id="modal-avatar-placeholder" class="font-black text-2xl" style="color:var(--muted)">?</div>
+      </div>
 
-          ${!memo.completed ? `
-          <div class="mt-4 bg-white p-4 rounded-3xl border border-indigo-100 shadow-xl hidden" id="log-input-${memo.id}">
-            <textarea id="log-text-${memo.id}" placeholder="處理進度..." class="w-full text-sm p-3 bg-slate-50 rounded-2xl focus:outline-none min-h-[60px]"></textarea>
+      <h2 class="text-xl font-black mb-2" style="color:var(--ink)">個人設定</h2>
+      <p class="text-[11px] font-bold mb-6" style="color:var(--muted2)">啟用通知、或登出帳號</p>
 
-            <div id="log-preview-${memo.id}" class="hidden mb-2 relative w-20 h-20">
-              <img src="" class="w-full h-full object-cover rounded-lg border">
-              <button class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-0.5" onclick="clearLogImg('${memo.id}')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
+      <button id="system-notification-btn"
+        class="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 border mb-4 transition-all bg-white"
+        style="border-color:var(--border); color:var(--ink)">
+        啟動系統通知
+      </button>
 
-            <div class="flex gap-2 mt-2">
-              <label class="p-3 bg-indigo-50 text-indigo-600 rounded-xl cursor-pointer">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <input type="file" accept="image/*" class="hidden" onchange="previewLogImg(this, '${memo.id}')">
-              </label>
-              <button class="flex-1 bg-indigo-600 text-white font-bold rounded-xl py-2" onclick="addLogEntry('${memo.id}')">送出進度</button>
-              <button class="px-4 text-slate-400 font-bold" onclick="toggleLogInput('${memo.id}', false)">取消</button>
-            </div>
-          </div>
+      <button id="logout-btn"
+        class="w-full py-4 rounded-2xl font-black mb-4"
+        style="background:rgba(225,29,72,.10); color:rgba(225,29,72,1); border:1px solid rgba(225,29,72,.14)">
+        登出帳號
+      </button>
 
-          <button id="add-log-btn-${memo.id}" class="w-full py-4 bg-white border border-dashed border-slate-200 rounded-2xl text-[11px] font-black text-slate-400 flex items-center justify-center gap-2" onclick="toggleLogInput('${memo.id}', true)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> 新增進度備註
+      <button id="close-settings-btn"
+        class="w-full py-4 rounded-2xl font-black btn-dark active:scale-[0.99] transition-all">
+        關閉
+      </button>
+    </div>
+  </div>
+
+  <!-- 結案預覽彈窗 -->
+  <div id="completion-modal" class="fixed inset-0 z-[110] bg-black/70 backdrop-blur-md flex items-center justify-center p-6 hidden">
+    <div class="card w-full max-w-sm rounded-[2.5rem] overflow-hidden">
+      <div class="p-4 text-white flex items-center gap-2"
+           style="background:linear-gradient(135deg,#0B1220,#334155)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+          <path d="M12 9v4"/><path d="M12 17h.01"/>
+        </svg>
+        <span class="font-black text-sm uppercase tracking-widest">結案確認</span>
+      </div>
+
+      <div class="p-6">
+        <p class="text-sm font-black mb-4" style="color:var(--muted)">請確認結案照片是否正確？</p>
+        <div class="rounded-2xl overflow-hidden border mb-6 aspect-video bg-slate-100 flex items-center justify-center"
+             style="border-color:var(--border)">
+          <img id="completion-preview-img" src="" class="w-full h-full object-cover">
+        </div>
+
+        <div class="flex gap-3">
+          <button id="confirm-completion-btn"
+            class="flex-1 py-4 rounded-2xl font-black btn-primary active:scale-[0.99] transition-all">
+            確認結案
           </button>
-          ` : ''}
+          <button id="cancel-completion-btn"
+            class="flex-1 py-4 rounded-2xl font-black btn-soft active:scale-[0.99] transition-all">
+            取消
+          </button>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div class="p-6 border-t border-slate-50">
-          ${memo.completed ? `
-          <div class="space-y-4">
-            ${memo.imageUrl ? `<img src="${memo.imageUrl}" class="w-full h-48 object-cover rounded-[2rem] cursor-pointer" onclick="viewImage('${memo.imageUrl}')">` : ''}
-            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-[2rem] border border-emerald-100">
-              <div class="text-emerald-700 text-xs font-black uppercase">任務已結案</div>
-              <div class="bg-emerald-600 text-white text-[10px] px-3 py-1.5 rounded-full font-black">執行: ${memo.completerName || '同仁'}</div>
-            </div>
-          </div>
-          ` : `
-          <label class="w-full bg-slate-900 text-white py-5 rounded-3xl flex items-center justify-center gap-3 font-black text-lg shadow-xl cursor-pointer active:scale-95 transition-all">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> 拍照並結案
-            <input type="file" accept="image/*" class="hidden" onchange="startCompletion(this, '${memo.id}')">
-          </label>
-          `}
-        </div>
-      `;
+  <!-- 圖片放大 -->
+  <div id="full-image-modal" class="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center p-6 hidden" onclick="this.classList.add('hidden')">
+    <img id="full-image" src="" class="max-w-full max-h-[85vh] object-contain rounded-3xl shadow-2xl ring-1 ring-white/10">
+    <p class="mt-8 text-white/40 text-xs font-black uppercase tracking-widest">點擊任意處關閉</p>
+  </div>
 
-      memosList.appendChild(card);
-      loadLogs(memo.id); // ✅ 每張卡片載入 logs
-    });
-  }
+  <!-- Firebase Scripts -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore, collection, doc, addDoc, onSnapshot, updateDoc, deleteDoc,
+      getDocs, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  // --- 全域：新增進度（寫入 logs 子集合） ---
-window.addLogEntry = async (memoId) => {
-  const textEl = document.getElementById(`log-text-${memoId}`);
-  const text = textEl.value;
-  if (!text.trim()) return;
+    // ✅ Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPUk9cyWn_xP1MgBd2a47jW8hf9whHX-I",
+      authDomain: "handover-app-197ba.firebaseapp.com",
+      projectId: "handover-app-197ba",
+      storageBucket: "handover-app-197ba.firebasestorage.app",
+      messagingSenderId: "458604325752",
+      appId: "1:458604325752:web:7ee5742c7944552db6b68d"
+    };
 
-  try {
-    const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+    // ✅ 固定共享 appId
+    const appId = "handover-shared-v1";
 
-    await addDoc(logsRef, {
-      text: text.trim(),
-      timestamp: Date.now(),
-      userId: currentUser.uid,                 // ✅ 必須有
-      userName: currentUser.displayName || '同仁',
-      img: window[`log_img_${memoId}`] || null
-    });
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-    window.clearLogImg(memoId);
-    textEl.value = '';
-    toggleLogInput(memoId, false);
-    loadLogs(memoId);
+    let currentUser = null;
+    let memos = [];
+    let isFirstLoad = true;
+    let previousMemos = [];
+    let pendingCompletionId = null;
+    let pendingCompletionUrl = null;
 
-  } catch (e) {
-    console.error("送出進度失敗:", e);
-    alert("送出失敗（可能是權限/網路/圖片太大），請再試一次");
-  }
-};
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const memosList = document.getElementById('memos-list');
+    const addTaskForm = document.getElementById('add-task-form');
+    const showAddTaskBtn = document.getElementById('show-add-task-btn');
+    const notificationContainer = document.getElementById('notification-container');
 
-  // --- UI: log input 開關 ---
-  window.toggleLogInput = (id, show) => {
-    document.getElementById(`log-input-${id}`).classList.toggle('hidden', !show);
-    document.getElementById(`add-log-btn-${id}`).classList.toggle('hidden', show);
-  };
+    // ✅ 圖片壓縮：避免 Firestore 1MB 限制
+    async function compressImageToDataURL(file, maxW = 1280, maxH = 1280, quality = 0.75) {
+      const dataURL = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-  // ✅ 新增進度：選圖 -> 壓縮 -> 預覽
-  window.previewLogImg = async (input, id) => {
-    const file = input.files[0];
-    if (!file) return;
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = dataURL;
+      });
 
-    try {
-      const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
-      const preview = document.getElementById(`log-preview-${id}`);
-      preview.querySelector('img').src = compressed;
-      preview.classList.remove('hidden');
-      window[`log_img_${id}`] = compressed;
-    } catch (e) {
-      console.error("圖片壓縮失敗:", e);
-      alert("圖片處理失敗，請換一張或重試");
+      const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+      const targetW = Math.round(img.width * ratio);
+      const targetH = Math.round(img.height * ratio);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      return canvas.toDataURL("image/jpeg", quality);
     }
-  };
 
-  window.clearLogImg = (id) => {
-    const el = document.getElementById(`log-preview-${id}`);
-    if (el) el.classList.add('hidden');
-    window[`log_img_${id}`] = null;
-  };
+    const formatTime = (ts) => {
+      const d = new Date(ts);
+      return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+    };
 
-  // ✅【編輯】打開編輯框：把現有文字帶進 textarea，並初始化「目前圖片狀態」
-  window.startEditLog = async (memoId, logId) => {
-    const editBox = document.getElementById(`log-edit-box-${memoId}-${logId}`);
-    const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
-    if (!editBox || !textarea) return;
+    // Auth
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        loginScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        updateUserUI();
+        initDataListener();
+      } else {
+        currentUser = null;
+        loginScreen.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+      }
+    });
 
-    // 讀目前畫面上的文字（避免多抓一次 DB）
-    const view = document.getElementById(`log-text-view-${memoId}-${logId}`);
-    textarea.value = (view?.innerText || '').trim();
+    document.getElementById('google-login-btn').onclick = () => {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).catch(err => console.error(err));
+    };
 
-    // 初始化：預設不改圖片（undefined 表示不動）
-    window[`edit_img_mode_${memoId}_${logId}`] = "keep"; // keep | replace | remove
-    window[`edit_img_data_${memoId}_${logId}`] = null;
+    document.getElementById('logout-btn').onclick = () => {
+      signOut(auth);
+      document.getElementById('settings-modal').classList.add('hidden');
+    };
 
-    editBox.classList.remove('hidden');
-  };
+    function updateUserUI() {
+      document.getElementById('display-name').innerText = currentUser.displayName || '同仁';
+      if (currentUser.photoURL) {
+        document.getElementById('user-avatar').src = currentUser.photoURL;
+        document.getElementById('user-avatar').classList.remove('hidden');
+        document.getElementById('avatar-placeholder').classList.add('hidden');
 
-  window.cancelLogEdit = (memoId, logId) => {
-    const editBox = document.getElementById(`log-edit-box-${memoId}-${logId}`);
-    if (editBox) editBox.classList.add('hidden');
+        document.getElementById('modal-user-avatar').src = currentUser.photoURL;
+        document.getElementById('modal-user-avatar').classList.remove('hidden');
+        document.getElementById('modal-avatar-placeholder').classList.add('hidden');
+      }
+    }
 
-    window[`edit_img_mode_${memoId}_${logId}`] = "keep";
-    window[`edit_img_data_${memoId}_${logId}`] = null;
-  };
+    // ✅ 任務監聽（memos）
+    function initDataListener() {
+      const memoCollection = collection(db, 'artifacts', appId, 'public', 'data', 'memos');
 
-  // ✅【編輯】預覽替換圖片（壓縮）
-  window.previewEditImg = async (input, memoId, logId) => {
-    const file = input.files[0];
-    if (!file) return;
+      onSnapshot(memoCollection, (snapshot) => {
+        const currentData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    try {
-      const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
-      window[`edit_img_mode_${memoId}_${logId}`] = "replace";
-      window[`edit_img_data_${memoId}_${logId}`] = compressed;
+        if (!isFirstLoad) {
+          snapshot.docChanges().forEach(change => {
+            const data = change.doc.data();
+            if (data.createdBy !== currentUser.uid && change.type === "added") {
+              showToast("🆕 新公務事項", `${data.creatorName} 新增了：${data.title}`);
+            }
+          });
+        }
+
+        memos = currentData.sort((a, b) => {
+          if (a.completed === b.completed) return b.createdAt - a.createdAt;
+          return a.completed ? 1 : -1;
+        });
+
+        previousMemos = currentData;
+        isFirstLoad = false;
+        renderMemos();
+      }, (err) => {
+        console.error("Firestore 監聽錯誤：", err);
+        alert("資料同步失敗（可能是 Firestore 權限/規則問題）");
+      });
+    }
+
+    // ✅ 載入 logs 子集合（支援編輯文字+圖片）
+    async function loadLogs(memoId) {
+      const box = document.getElementById(`logs-box-${memoId}`);
+      if (!box) return;
+
+      const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+      const q = query(logsRef, orderBy('timestamp', 'asc'));
+      const snap = await getDocs(q);
+
+      const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      if (!logs.length) {
+        box.innerHTML = '<p class="text-[10px] text-slate-400 italic text-center">目前尚無進度備註</p>';
+        return;
+      }
+
+      box.innerHTML = logs.map((log) => {
+        const isMine = (log.userId || log.uid) === currentUser?.uid;
+        const safeText = (log.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const hasImg = !!log.img;
+
+        return `
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-2 h-2 rounded-full ${isMine ? 'bg-indigo-600' : 'bg-slate-300'}"></div>
+            </div>
+
+            <div class="flex-1 bg-white/90 p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <div class="flex justify-between text-[10px] mb-1">
+                <span class="font-black text-indigo-700">${log.userName || '同仁'}</span>
+                <span class="text-slate-400 font-bold">${formatTime(log.timestamp || Date.now())}</span>
+              </div>
+
+              <div class="flex items-start gap-2">
+                <p class="text-sm font-semibold text-slate-800 flex-1" id="log-text-view-${memoId}-${log.id}">${safeText}</p>
+
+                ${isMine ? `
+                  <div class="flex gap-2 text-[11px] font-black shrink-0">
+                    <button class="text-indigo-700 hover:text-indigo-900" onclick="startEditLog('${memoId}','${log.id}')">編輯</button>
+                    <button class="text-rose-600 hover:text-rose-800" onclick="deleteLog('${memoId}','${log.id}')">刪除</button>
+                  </div>
+                ` : ``}
+              </div>
+
+              ${hasImg ? `<img src="${log.img}" class="mt-2 rounded-xl w-full h-28 object-cover cursor-pointer border border-slate-100" onclick="viewImage('${log.img}')">` : ``}
+
+              ${isMine ? `
+                <div id="log-edit-box-${memoId}-${log.id}" class="hidden mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                  <label class="text-[10px] font-black text-slate-400 block mb-2">編輯內容</label>
+                  <textarea class="w-full text-sm p-3 bg-white rounded-2xl focus:outline-none min-h-[70px] border border-slate-200"
+                    id="log-text-edit-${memoId}-${log.id}"></textarea>
+
+                  <div class="mt-3">
+                    <label class="text-[10px] font-black text-slate-400 block mb-2">編輯圖片（可更換/移除）</label>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <label class="px-3 py-2 rounded-xl cursor-pointer text-xs font-black bg-indigo-50 text-indigo-800 border border-indigo-100">
+                        選擇圖片
+                        <input type="file" accept="image/*" class="hidden" onchange="previewEditImg(this,'${memoId}','${log.id}')">
+                      </label>
+
+                      <button class="px-3 py-2 rounded-xl text-xs font-black bg-slate-200 text-slate-700 border border-slate-200"
+                        onclick="removeEditImg('${memoId}','${log.id}')">移除圖片</button>
+
+                      <span class="text-[11px] font-bold text-slate-500" id="edit-img-hint-${memoId}-${log.id}">
+                        ${hasImg ? '目前有圖片' : '目前無圖片'}
+                      </span>
+                    </div>
+
+                    <div id="edit-img-preview-box-${memoId}-${log.id}" class="${hasImg ? '' : 'hidden'} mt-2 relative w-24 h-24">
+                      <img id="edit-img-preview-${memoId}-${log.id}" src="${hasImg ? log.img : ''}" class="w-full h-full object-cover rounded-xl border border-slate-200">
+                    </div>
+                  </div>
+
+                  <div class="flex gap-2 mt-3">
+                    <button class="flex-1 py-2 rounded-xl font-black btn-primary active:scale-[0.99] transition-all"
+                      onclick="saveLogEdit('${memoId}','${log.id}')">儲存</button>
+                    <button class="px-4 py-2 rounded-xl font-black btn-soft active:scale-[0.99] transition-all"
+                      onclick="cancelLogEdit('${memoId}','${log.id}')">取消</button>
+                  </div>
+                </div>
+              ` : ``}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderMemos() {
+      memosList.innerHTML = '';
+
+      memos.forEach(memo => {
+        const card = document.createElement('div');
+
+        // ✅ 商務卡片樣式：淡玻璃+邊框+陰影
+        card.className = `card rounded-[2.5rem] overflow-hidden transition-all ${memo.completed ? 'opacity-75' : 'animate__animated animate__fadeIn'}`;
+
+        card.innerHTML = `
+          <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-white/60">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                ${memo.completed ? '<svg class="w-6 h-6" style="color:var(--success)" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>' : '<div class="w-3 h-3 rounded-full bg-indigo-600 animate-pulse"></div>'}
+                <h3 class="font-black text-xl tracking-tight ${memo.completed ? 'text-slate-400 line-through' : 'text-slate-900'}">${memo.title}</h3>
+                <span class="badge ${memo.completed ? 'badge-done' : 'badge-live'}">${memo.completed ? 'DONE' : 'LIVE'}</span>
+              </div>
+              <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                發起：${memo.creatorName || '同仁'} · ${formatTime(memo.createdAt || Date.now())}
+              </div>
+            </div>
+
+            <button class="text-slate-300 hover:text-rose-600 transition-colors p-2"
+              onclick="deleteMemo('${memo.id}')"
+              title="刪除此任務">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6 space-y-6" style="background:rgba(248,250,252,.55)">
+            <div class="text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-200/70 pb-2">
+              交接日誌
+            </div>
+
+            <div class="space-y-4" id="logs-box-${memo.id}">
+              <p class="text-[10px] text-slate-400 italic text-center">載入中...</p>
+            </div>
+
+            ${!memo.completed ? `
+              <div class="mt-4 bg-white/80 p-4 rounded-3xl border border-slate-200 shadow-sm hidden" id="log-input-${memo.id}">
+                <textarea id="log-text-${memo.id}" placeholder="處理進度..." class="w-full text-sm p-3 bg-slate-50 rounded-2xl focus:outline-none min-h-[70px] border border-slate-200"></textarea>
+
+                <div id="log-preview-${memo.id}" class="hidden mb-2 relative w-20 h-20">
+                  <img src="" class="w-full h-full object-cover rounded-lg border border-slate-200">
+                  <button class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-0.5 shadow"
+                    onclick="clearLogImg('${memo.id}')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                      <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="flex gap-2 mt-2 items-center">
+                  <label class="p-3 rounded-xl cursor-pointer bg-indigo-50 text-indigo-800 border border-indigo-100">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <input type="file" accept="image/*" class="hidden" onchange="previewLogImg(this, '${memo.id}')">
+                  </label>
+
+                  <button class="flex-1 py-3 rounded-xl font-black btn-primary active:scale-[0.99] transition-all"
+                    onclick="addLogEntry('${memo.id}')">送出進度</button>
+
+                  <button class="px-4 py-3 rounded-xl font-black btn-soft active:scale-[0.99] transition-all"
+                    onclick="toggleLogInput('${memo.id}', false)">取消</button>
+                </div>
+              </div>
+
+              <button id="add-log-btn-${memo.id}"
+                class="w-full py-4 rounded-2xl text-[11px] font-black flex items-center justify-center gap-2 card-flat dashed active:scale-[0.99] transition-all"
+                onclick="toggleLogInput('${memo.id}', true)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+                新增進度備註（可附圖）
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="p-6 border-t border-slate-100 bg-white/60">
+            ${memo.completed ? `
+              <div class="space-y-4">
+                ${memo.imageUrl ? `<img src="${memo.imageUrl}" class="w-full h-48 object-cover rounded-[2rem] cursor-pointer border border-slate-100" onclick="viewImage('${memo.imageUrl}')">` : ''}
+                <div class="flex items-center justify-between p-4 rounded-[2rem] border"
+                     style="background:rgba(5,150,105,.08); border-color:rgba(5,150,105,.18)">
+                  <div class="text-emerald-800 text-xs font-black uppercase tracking-widest">任務已結案</div>
+                  <div class="text-[10px] px-3 py-1.5 rounded-full font-black text-white"
+                       style="background:rgba(5,150,105,1)">執行：${memo.completerName || '同仁'}</div>
+                </div>
+              </div>
+            ` : `
+              <label class="w-full py-5 rounded-3xl flex items-center justify-center gap-3 font-black text-lg btn-dark cursor-pointer active:scale-[0.99] transition-all">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                拍照並結案
+                <input type="file" accept="image/*" class="hidden" onchange="startCompletion(this, '${memo.id}')">
+              </label>
+            `}
+          </div>
+        `;
+
+        memosList.appendChild(card);
+        loadLogs(memo.id);
+      });
+    }
+
+    // --- 新增進度（寫入 logs 子集合） ---
+    window.addLogEntry = async (memoId) => {
+      const textEl = document.getElementById(`log-text-${memoId}`);
+      const text = textEl.value;
+      if (!text.trim()) return;
+
+      try {
+        const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+
+        await addDoc(logsRef, {
+          text: text.trim(),
+          timestamp: Date.now(),
+          userId: currentUser.uid,
+          userName: currentUser.displayName || '同仁',
+          img: window[`log_img_${memoId}`] || null
+        });
+
+        window.clearLogImg(memoId);
+        textEl.value = '';
+        toggleLogInput(memoId, false);
+        loadLogs(memoId);
+      } catch (e) {
+        console.error("送出進度失敗:", e);
+        alert("送出失敗（可能是圖片太大/網路/權限問題），請再試一次");
+      }
+    };
+
+    // log input 開關
+    window.toggleLogInput = (id, show) => {
+      document.getElementById(`log-input-${id}`).classList.toggle('hidden', !show);
+      document.getElementById(`add-log-btn-${id}`).classList.toggle('hidden', show);
+    };
+
+    // 新增進度：選圖 -> 壓縮 -> 預覽
+    window.previewLogImg = async (input, id) => {
+      const file = input.files[0];
+      if (!file) return;
+
+      try {
+        const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
+        const preview = document.getElementById(`log-preview-${id}`);
+        preview.querySelector('img').src = compressed;
+        preview.classList.remove('hidden');
+        window[`log_img_${id}`] = compressed;
+      } catch (e) {
+        console.error("圖片壓縮失敗:", e);
+        alert("圖片處理失敗，請換一張或重試");
+      }
+    };
+
+    window.clearLogImg = (id) => {
+      const el = document.getElementById(`log-preview-${id}`);
+      if (el) el.classList.add('hidden');
+      window[`log_img_${id}`] = null;
+    };
+
+    // 編輯：開啟
+    window.startEditLog = async (memoId, logId) => {
+      const editBox = document.getElementById(`log-edit-box-${memoId}-${logId}`);
+      const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
+      if (!editBox || !textarea) return;
+
+      const view = document.getElementById(`log-text-view-${memoId}-${logId}`);
+      textarea.value = (view?.innerText || '').trim();
+
+      window[`edit_img_mode_${memoId}_${logId}`] = "keep"; // keep | replace | remove
+      window[`edit_img_data_${memoId}_${logId}`] = null;
+
+      editBox.classList.remove('hidden');
+    };
+
+    window.cancelLogEdit = (memoId, logId) => {
+      const editBox = document.getElementById(`log-edit-box-${memoId}-${logId}`);
+      if (editBox) editBox.classList.add('hidden');
+
+      window[`edit_img_mode_${memoId}_${logId}`] = "keep";
+      window[`edit_img_data_${memoId}_${logId}`] = null;
+    };
+
+    // 編輯：選新圖（壓縮）
+    window.previewEditImg = async (input, memoId, logId) => {
+      const file = input.files[0];
+      if (!file) return;
+
+      try {
+        const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
+        window[`edit_img_mode_${memoId}_${logId}`] = "replace";
+        window[`edit_img_data_${memoId}_${logId}`] = compressed;
+
+        const box = document.getElementById(`edit-img-preview-box-${memoId}-${logId}`);
+        const img = document.getElementById(`edit-img-preview-${memoId}-${logId}`);
+        const hint = document.getElementById(`edit-img-hint-${memoId}-${logId}`);
+
+        if (img) img.src = compressed;
+        if (box) box.classList.remove('hidden');
+        if (hint) hint.innerText = "已選擇新圖片（儲存後生效）";
+      } catch (e) {
+        console.error("編輯圖片壓縮失敗:", e);
+        alert("圖片處理失敗，請換一張或重試");
+      }
+    };
+
+    // 編輯：移除圖片
+    window.removeEditImg = (memoId, logId) => {
+      window[`edit_img_mode_${memoId}_${logId}`] = "remove";
+      window[`edit_img_data_${memoId}_${logId}`] = null;
 
       const box = document.getElementById(`edit-img-preview-box-${memoId}-${logId}`);
-      const img = document.getElementById(`edit-img-preview-${memoId}-${logId}`);
       const hint = document.getElementById(`edit-img-hint-${memoId}-${logId}`);
+      if (box) box.classList.add('hidden');
+      if (hint) hint.innerText = "已設定移除圖片（儲存後生效）";
+    };
 
-      if (img) img.src = compressed;
-      if (box) box.classList.remove('hidden');
-      if (hint) hint.innerText = "已選擇新圖片（儲存後生效）";
-    } catch (e) {
-      console.error("編輯圖片壓縮失敗:", e);
-      alert("圖片處理失敗，請換一張或重試");
-    }
-  };
+    // 編輯：儲存
+    window.saveLogEdit = async (memoId, logId) => {
+      const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
+      if (!textarea) return;
 
-  // ✅【編輯】移除圖片
-  window.removeEditImg = (memoId, logId) => {
-    window[`edit_img_mode_${memoId}_${logId}`] = "remove";
-    window[`edit_img_data_${memoId}_${logId}`] = null;
+      const newText = textarea.value.trim();
+      if (!newText) return alert("內容不能空白");
 
-    const box = document.getElementById(`edit-img-preview-box-${memoId}-${logId}`);
-    const hint = document.getElementById(`edit-img-hint-${memoId}-${logId}`);
-    if (box) box.classList.add('hidden');
-    if (hint) hint.innerText = "已設定移除圖片（儲存後生效）";
-  };
+      const mode = window[`edit_img_mode_${memoId}_${logId}`] || "keep";
+      const newImg = window[`edit_img_data_${memoId}_${logId}`];
 
-  // ✅【編輯】儲存：文字 + 圖片（keep/replace/remove）
-  window.saveLogEdit = async (memoId, logId) => {
-    const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
-    if (!textarea) return;
+      try {
+        const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
+        const payload = { text: newText };
 
-    const newText = textarea.value.trim();
-    if (!newText) return alert("內容不能空白");
+        if (mode === "replace") payload.img = newImg || null;
+        if (mode === "remove") payload.img = null;
 
-    const mode = window[`edit_img_mode_${memoId}_${logId}`] || "keep";
-    const newImg = window[`edit_img_data_${memoId}_${logId}`];
+        await updateDoc(logRef, payload);
 
-    try {
-      const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
+        window.cancelLogEdit(memoId, logId);
+        await loadLogs(memoId);
+      } catch (e) {
+        console.error("編輯失敗:", e);
+        alert("編輯失敗：你只能修改自己發的備註（或權限/網路問題）");
+      }
+    };
 
-      // 只更新必要欄位（避免被規則擋）
-      const payload = { text: newText };
+    // 刪除備註
+    window.deleteLog = async (memoId, logId) => {
+      if (!confirm("確定要刪除這則備註嗎？")) return;
 
-      if (mode === "replace") payload.img = newImg || null;
-      if (mode === "remove") payload.img = null;
+      try {
+        const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
+        await deleteDoc(logRef);
+        await loadLogs(memoId);
+      } catch (e) {
+        console.error("刪除失敗:", e);
+        alert("刪除失敗：你只能刪除自己發的備註（或權限/網路問題）");
+      }
+    };
 
-      await updateDoc(logRef, payload);
+    // 結案（照片 base64）
+    window.startCompletion = (input, id) => {
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          pendingCompletionId = id;
+          pendingCompletionUrl = e.target.result;
+          document.getElementById('completion-preview-img').src = e.target.result;
+          document.getElementById('completion-modal').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
 
-      window.cancelLogEdit(memoId, logId);
-      await loadLogs(memoId);
-
-    } catch (e) {
-      console.error("編輯失敗:", e);
-      alert("編輯失敗：你只能修改自己發的備註（或權限/網路問題）");
-    }
-  };
-
-  // ✅【刪除】備註
-  window.deleteLog = async (memoId, logId) => {
-    if (!confirm("確定要刪除這則備註嗎？")) return;
-
-    try {
-      const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
-      await deleteDoc(logRef);
-      await loadLogs(memoId);
-    } catch (e) {
-      console.error("刪除失敗:", e);
-      alert("刪除失敗：你只能刪除自己發的備註（或權限/網路問題）");
-    }
-  };
-
-  // ✅ 任務結案（照片仍先用 base64；之後可改 Storage）
-  window.startCompletion = (input, id) => {
-    const file = input.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        pendingCompletionId = id;
-        pendingCompletionUrl = e.target.result;
-        document.getElementById('completion-preview-img').src = e.target.result;
-        document.getElementById('completion-modal').classList.remove('hidden');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  document.getElementById('confirm-completion-btn').onclick = async () => {
-    if (!pendingCompletionId) return;
-    const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', pendingCompletionId);
-    await updateDoc(memoRef, {
-      completed: true,
-      completedBy: currentUser.uid,
-      completerName: currentUser.displayName || '同仁',
-      completedAt: Date.now(),
-      imageUrl: pendingCompletionUrl
-    });
-    document.getElementById('completion-modal').classList.add('hidden');
-    pendingCompletionId = null;
-  };
-
-  document.getElementById('cancel-completion-btn').onclick = () => {
-    document.getElementById('completion-modal').classList.add('hidden');
-  };
-
-  // ✅ 刪任務
-  window.deleteMemo = async (id) => {
-    if (confirm("確定要刪除這項公務紀錄嗎？")) {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'memos', id));
-    }
-  };
-
-  // ✅ 放大圖片
-  window.viewImage = (url) => {
-    document.getElementById('full-image').src = url;
-    document.getElementById('full-image-modal').classList.remove('hidden');
-  };
-
-  // 新增任務
-  showAddTaskBtn.onclick = () => {
-    addTaskForm.classList.remove('hidden');
-    showAddTaskBtn.classList.add('hidden');
-  };
-
-  document.getElementById('cancel-add-task-btn').onclick = () => {
-    addTaskForm.classList.add('hidden');
-    showAddTaskBtn.classList.remove('hidden');
-  };
-
-  document.getElementById('submit-task-btn').onclick = async () => {
-    const title = document.getElementById('new-task-title').value;
-    if (!title.trim()) return;
-
-    try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'memos'), {
-        title: title.trim(),
-        createdAt: Date.now(),
-        createdBy: currentUser.uid,
-        creatorName: currentUser.displayName || '同仁',
-        completed: false
+    document.getElementById('confirm-completion-btn').onclick = async () => {
+      if (!pendingCompletionId) return;
+      const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', pendingCompletionId);
+      await updateDoc(memoRef, {
+        completed: true,
+        completedBy: currentUser.uid,
+        completerName: currentUser.displayName || '同仁',
+        completedAt: Date.now(),
+        imageUrl: pendingCompletionUrl
       });
+      document.getElementById('completion-modal').classList.add('hidden');
+      pendingCompletionId = null;
+    };
 
-      document.getElementById('new-task-title').value = '';
+    document.getElementById('cancel-completion-btn').onclick = () => {
+      document.getElementById('completion-modal').classList.add('hidden');
+    };
+
+    // 刪任務
+    window.deleteMemo = async (id) => {
+      if (confirm("確定要刪除這項公務紀錄嗎？")) {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'memos', id));
+      }
+    };
+
+    // 放大圖片
+    window.viewImage = (url) => {
+      document.getElementById('full-image').src = url;
+      document.getElementById('full-image-modal').classList.remove('hidden');
+    };
+
+    // 新增任務 UI
+    showAddTaskBtn.onclick = () => {
+      addTaskForm.classList.remove('hidden');
+      showAddTaskBtn.classList.add('hidden');
+      document.getElementById('new-task-title')?.focus();
+    };
+
+    document.getElementById('cancel-add-task-btn').onclick = () => {
       addTaskForm.classList.add('hidden');
       showAddTaskBtn.classList.remove('hidden');
-    } catch (e) {
-      console.error("建立任務失敗:", e);
-      alert("建立任務失敗（可能是 Firestore 權限/規則或網路問題）");
-    }
-  };
+    };
 
-  // 設定開關
-  document.getElementById('settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
-  document.getElementById('close-settings-btn').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
+    document.getElementById('submit-task-btn').onclick = async () => {
+      const title = document.getElementById('new-task-title').value;
+      if (!title.trim()) return;
 
-  // toast
-  function showToast(title, body) {
-    const toast = document.createElement('div');
-    toast.className = "toast-enter bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex items-start gap-4 border border-white/10 backdrop-blur-md mb-3 pointer-events-auto";
-    toast.innerHTML = `
-      <div class="bg-indigo-500 p-2 rounded-2xl shadow-lg">
-        <svg class="w-6 h-6 animate-ring" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-      </div>
-      <div class="flex-1">
-        <h4 class="font-black text-sm mb-1">${title}</h4>
-        <p class="text-xs text-slate-300 font-medium">${body}</p>
-      </div>
-    `;
-    notificationContainer.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.remove('toast-enter');
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.5s';
-      setTimeout(() => toast.remove(), 500);
-    }, 4000);
-  }
+      try {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'memos'), {
+          title: title.trim(),
+          createdAt: Date.now(),
+          createdBy: currentUser.uid,
+          creatorName: currentUser.displayName || '同仁',
+          completed: false
+        });
 
-  // 系統通知權限
-  document.getElementById('system-notification-btn').onclick = async () => {
-    if ("Notification" in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        new Notification("系統通知已啟動", { body: "交接清單更新時您將會收到提醒。" });
-        document.getElementById('system-notification-btn').innerText = "系統通知已開啟";
-        document.getElementById('system-notification-btn').classList.add('bg-emerald-50', 'text-emerald-600');
+        document.getElementById('new-task-title').value = '';
+        addTaskForm.classList.add('hidden');
+        showAddTaskBtn.classList.remove('hidden');
+      } catch (e) {
+        console.error("建立任務失敗:", e);
+        alert("建立任務失敗（可能是 Firestore 權限/規則或網路問題）");
       }
-    } else {
-      alert("此裝置不支援系統通知");
+    };
+
+    // 設定開關
+    document.getElementById('settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
+    document.getElementById('close-settings-btn').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
+
+    // toast
+    function showToast(title, body) {
+      const toast = document.createElement('div');
+      toast.className = "toast-enter bg-slate-900/90 text-white p-4 rounded-3xl shadow-2xl flex items-start gap-4 border border-white/10 backdrop-blur-md mb-3 pointer-events-auto";
+      toast.innerHTML = `
+        <div class="p-2 rounded-2xl shadow-lg" style="background:rgba(79,70,229,.85)">
+          <svg class="w-6 h-6 animate-ring" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-black text-sm mb-1">${title}</h4>
+          <p class="text-xs text-slate-200 font-medium">${body}</p>
+        </div>
+      `;
+      notificationContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('toast-enter');
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s';
+        setTimeout(() => toast.remove(), 500);
+      }, 4000);
     }
-  };
-</script>
+
+    // 通知權限
+    document.getElementById('system-notification-btn').onclick = async () => {
+      if ("Notification" in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          new Notification("系統通知已啟動", { body: "交接清單更新時您將會收到提醒。" });
+          const btn = document.getElementById('system-notification-btn');
+          btn.innerText = "系統通知已開啟";
+          btn.classList.add('bg-emerald-50', 'text-emerald-700');
+        }
+      } else {
+        alert("此裝置不支援系統通知");
+      }
+    };
+  </script>
 </body>
 </html>
