@@ -829,33 +829,59 @@
     };
 
     // 結案（照片 base64）
-    window.startCompletion = (input, id) => {
-      const file = input.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          pendingCompletionId = id;
-          pendingCompletionUrl = e.target.result;
-          document.getElementById('completion-preview-img').src = e.target.result;
-          document.getElementById('completion-modal').classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-      }
-    };
+window.startCompletion = async (input, id) => {
+  const file = input.files[0];
+  if (!file) return;
 
-    document.getElementById('confirm-completion-btn').onclick = async () => {
-      if (!pendingCompletionId) return;
-      const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', pendingCompletionId);
-      await updateDoc(memoRef, {
-        completed: true,
-        completedBy: currentUser.uid,
-        completerName: currentUser.displayName || '同仁',
-        completedAt: Date.now(),
-        imageUrl: pendingCompletionUrl
-      });
-      document.getElementById('completion-modal').classList.add('hidden');
-      pendingCompletionId = null;
-    };
+  try {
+    // ✅ 壓縮結案照片（避免 Firestore 寫入失敗）
+    const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
+
+    pendingCompletionId = id;
+    pendingCompletionUrl = compressed;
+
+    document.getElementById('completion-preview-img').src = compressed;
+    document.getElementById('completion-modal').classList.remove('hidden');
+
+    // ✅ 清掉 input 值，避免同一張圖再次選取不觸發 change
+    input.value = "";
+  } catch (e) {
+    console.error("結案照片處理失敗:", e);
+    alert("照片處理失敗，請換一張或重試");
+  }
+};
+
+document.getElementById('confirm-completion-btn').onclick = async () => {
+  if (!pendingCompletionId) return;
+
+  const btn = document.getElementById('confirm-completion-btn');
+  btn.disabled = true;
+  const oldText = btn.innerText;
+  btn.innerText = "結案中...";
+
+  try {
+    const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', pendingCompletionId);
+
+    await updateDoc(memoRef, {
+      completed: true,
+      completedBy: currentUser.uid,
+      completerName: currentUser.displayName || '同仁',
+      completedAt: Date.now(),
+      imageUrl: pendingCompletionUrl || null
+    });
+
+    // ✅ 成功：一定關視窗 + 清狀態
+    document.getElementById('completion-modal').classList.add('hidden');
+    pendingCompletionId = null;
+    pendingCompletionUrl = null;
+  } catch (e) {
+    console.error("確認結案失敗:", e);
+    alert("結案失敗（通常是照片太大或 Firestore 權限/網路問題）。\n我已幫你加壓縮，請再試一次。");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = oldText;
+  }
+};
 
     document.getElementById('cancel-completion-btn').onclick = () => {
       document.getElementById('completion-modal').classList.add('hidden');
