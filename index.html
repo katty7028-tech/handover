@@ -854,21 +854,51 @@ window.startCompletion = async (input, id) => {
 document.getElementById('confirm-completion-btn').onclick = async () => {
   if (!pendingCompletionId) return;
 
+  const modal = document.getElementById('completion-modal');
   const btn = document.getElementById('confirm-completion-btn');
+
+  // ✅ 先把資料備份起來（避免後面被清掉）
+  const id = pendingCompletionId;
+  const url = pendingCompletionUrl || null;
+
+  // ✅ 先關視窗（手機最重要）
+  modal.classList.add('hidden');
+
+  // ✅ 防連點
   btn.disabled = true;
   const oldText = btn.innerText;
   btn.innerText = "結案中...";
 
-  try {
-    const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', pendingCompletionId);
+  // ✅ 先清狀態（避免 onSnapshot 更新時又被重開）
+  pendingCompletionId = null;
+  pendingCompletionUrl = null;
 
+  try {
+    const memoRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', id);
     await updateDoc(memoRef, {
       completed: true,
       completedBy: currentUser.uid,
       completerName: currentUser.displayName || '同仁',
       completedAt: Date.now(),
-      imageUrl: pendingCompletionUrl || null
+      imageUrl: url
     });
+
+    // ✅ 成功：再保險關一次（避免某些 iOS 異常）
+    modal.classList.add('hidden');
+  } catch (e) {
+    console.error("確認結案失敗:", e);
+
+    // ❌ 失敗：把視窗打開讓你重試
+    pendingCompletionId = id;
+    pendingCompletionUrl = url;
+    modal.classList.remove('hidden');
+
+    alert("結案失敗（可能網路/權限/照片太大）。請再試一次。");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = oldText;
+  }
+};
 
     // ✅ 成功：一定關視窗 + 清狀態
     document.getElementById('completion-modal').classList.add('hidden');
