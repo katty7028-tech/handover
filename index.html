@@ -28,8 +28,6 @@
       --muted2:#94A3B8;
 
       --brand:#4F46E5;
-      --brandSoft: rgba(79,70,229,.10);
-
       --danger:#E11D48;
       --success:#059669;
     }
@@ -131,7 +129,6 @@
     }
   </style>
 
-  <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0B1220">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -181,7 +178,7 @@
         </div>
         <div class="flex flex-col">
           <h1 class="text-xl font-black tracking-tight" style="color:var(--ink)">公務日誌</h1>
-          <span class="text-[11px] font-bold" style="color:var(--muted2)">沒有大人的小基地 · 放心使用</span>
+          <span class="text-[11px] font-bold" style="color:var(--muted2)">同步雲端 · 多人即時協作</span>
         </div>
       </div>
 
@@ -202,6 +199,7 @@
     </header>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
+      <!-- 新增按鈕 -->
       <div id="add-task-container">
         <button id="show-add-task-btn"
           class="group w-full card-flat dashed rounded-3xl py-8 flex flex-col items-center justify-center gap-2 hover:scale-[1.01] transition-all active:scale-95">
@@ -321,9 +319,10 @@
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import {
       getFirestore, collection, doc, addDoc, onSnapshot, updateDoc, deleteDoc,
-      getDocs, query, orderBy
+      query, orderBy
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+    // ✅ Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyBPUk9cyWn_xP1MgBd2a47jW8hf9whHX-I",
       authDomain: "handover-app-197ba.firebaseapp.com",
@@ -333,6 +332,7 @@
       appId: "1:458604325752:web:7ee5742c7944552db6b68d"
     };
 
+    // ✅ 固定共享 appId
     const appId = "handover-shared-v1";
 
     const app = initializeApp(firebaseConfig);
@@ -342,9 +342,12 @@
     let currentUser = null;
     let memos = [];
     let isFirstLoad = true;
-    let previousMemos = [];
     let pendingCompletionId = null;
     let pendingCompletionUrl = null;
+
+    // ✅ logs 即時監聽管理（解決「要重整才看到」）
+    let logsUnsubs = {};  // memoId -> unsubscribe
+    let openedLogs = {};  // memoId -> bool
 
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('main-app');
@@ -353,6 +356,7 @@
     const showAddTaskBtn = document.getElementById('show-add-task-btn');
     const notificationContainer = document.getElementById('notification-container');
 
+    // ✅ 圖片壓縮：避免 Firestore 1MB 限制
     async function compressImageToDataURL(file, maxW = 1280, maxH = 1280, quality = 0.75) {
       const dataURL = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -386,6 +390,31 @@
       return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
     };
 
+    // Auth
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        loginScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        updateUserUI();
+        initDataListener();
+      } else {
+        currentUser = null;
+        loginScreen.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('google-login-btn').onclick = () => {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).catch(err => console.error(err));
+    };
+
+    document.getElementById('logout-btn').onclick = () => {
+      signOut(auth);
+      document.getElementById('settings-modal').classList.add('hidden');
+    };
+
     function updateUserUI() {
       document.getElementById('display-name').innerText = currentUser.displayName || '同仁';
       if (currentUser.photoURL) {
@@ -399,13 +428,14 @@
       }
     }
 
+    // ✅ 任務監聽（memos）
     function initDataListener() {
       const memoCollection = collection(db, 'artifacts', appId, 'public', 'data', 'memos');
 
       onSnapshot(memoCollection, (snapshot) => {
         const currentData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        if (!isFirstLoad) {
+        if (!isFirstLoad && currentUser) {
           snapshot.docChanges().forEach(change => {
             const data = change.doc.data();
             if (data.createdBy !== currentUser.uid && change.type === "added") {
@@ -419,7 +449,6 @@
           return a.completed ? 1 : -1;
         });
 
-        previousMemos = currentData;
         isFirstLoad = false;
         renderMemos();
       }, (err) => {
@@ -428,94 +457,117 @@
       });
     }
 
-    async function loadLogs(memoId) {
+    // ✅ logs 即時監聽（解決：要重整才看到）
+    function subscribeLogs(memoId) {
       const box = document.getElementById(`logs-box-${memoId}`);
       if (!box) return;
 
-      const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
-      const q = query(logsRef, orderBy('timestamp', 'asc'));
-      const snap = await getDocs(q);
+      if (openedLogs[memoId]) return;
+      openedLogs[memoId] = true;
 
-      const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      if (!logs.length) {
-        box.innerHTML = '<p class="text-[10px] text-slate-400 italic text-center">目前尚無進度備註</p>';
-        return;
+      if (logsUnsubs[memoId]) {
+        logsUnsubs[memoId]();
+        delete logsUnsubs[memoId];
       }
 
-      box.innerHTML = logs.map((log) => {
-        const isMine = (log.userId || log.uid) === currentUser?.uid;
-        const safeText = (log.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const hasImg = !!log.img;
+      const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+      const q = query(logsRef, orderBy('timestamp', 'asc'));
 
-        return `
-          <div class="flex gap-4">
-            <div class="flex flex-col items-center">
-              <div class="w-2 h-2 rounded-full ${isMine ? 'bg-indigo-600' : 'bg-slate-300'}"></div>
-            </div>
+      logsUnsubs[memoId] = onSnapshot(q, (snap) => {
+        const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-            <div class="flex-1 bg-white/90 p-3 rounded-2xl border border-slate-100 shadow-sm">
-              <div class="flex justify-between text-[10px] mb-1">
-                <span class="font-black text-indigo-700">${log.userName || '同仁'}</span>
-                <span class="text-slate-400 font-bold">${formatTime(log.timestamp || Date.now())}</span>
+        if (!logs.length) {
+          box.innerHTML = '<p class="text-[10px] text-slate-400 italic text-center">目前尚無進度備註</p>';
+          return;
+        }
+
+        box.innerHTML = logs.map((log) => {
+          const isMine = (log.userId || log.uid) === currentUser?.uid;
+          const safeText = (log.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const hasImg = !!log.img;
+
+          return `
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class="w-2 h-2 rounded-full ${isMine ? 'bg-indigo-600' : 'bg-slate-300'}"></div>
               </div>
 
-              <div class="flex items-start gap-2">
-                <p class="text-sm font-semibold text-slate-800 flex-1" id="log-text-view-${memoId}-${log.id}">${safeText}</p>
+              <div class="flex-1 bg-white/90 p-3 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex justify-between text-[10px] mb-1">
+                  <span class="font-black text-indigo-700">${log.userName || '同仁'}</span>
+                  <span class="text-slate-400 font-bold">${formatTime(log.timestamp || Date.now())}</span>
+                </div>
+
+                <div class="flex items-start gap-2">
+                  <p class="text-sm font-semibold text-slate-800 flex-1" id="log-text-view-${memoId}-${log.id}">${safeText}</p>
+
+                  ${isMine ? `
+                    <div class="flex gap-2 text-[11px] font-black shrink-0">
+                      <button class="text-indigo-700 hover:text-indigo-900" onclick="startEditLog('${memoId}','${log.id}')">編輯</button>
+                      <button class="text-rose-600 hover:text-rose-800" onclick="deleteLog('${memoId}','${log.id}')">刪除</button>
+                    </div>
+                  ` : ``}
+                </div>
+
+                ${hasImg ? `<img src="${log.img}" class="mt-2 rounded-xl w-full h-28 object-cover cursor-pointer border border-slate-100" onclick="viewImage('${log.img}')">` : ``}
 
                 ${isMine ? `
-                  <div class="flex gap-2 text-[11px] font-black shrink-0">
-                    <button class="text-indigo-700 hover:text-indigo-900" onclick="startEditLog('${memoId}','${log.id}')">編輯</button>
-                    <button class="text-rose-600 hover:text-rose-800" onclick="deleteLog('${memoId}','${log.id}')">刪除</button>
+                  <div id="log-edit-box-${memoId}-${log.id}" class="hidden mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                    <label class="text-[10px] font-black text-slate-400 block mb-2">編輯內容</label>
+                    <textarea class="w-full text-sm p-3 bg-white rounded-2xl focus:outline-none min-h-[70px] border border-slate-200"
+                      id="log-text-edit-${memoId}-${log.id}"></textarea>
+
+                    <div class="mt-3">
+                      <label class="text-[10px] font-black text-slate-400 block mb-2">編輯圖片（可更換/移除）</label>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <label class="px-3 py-2 rounded-xl cursor-pointer text-xs font-black bg-indigo-50 text-indigo-800 border border-indigo-100">
+                          選擇圖片
+                          <input type="file" accept="image/*" class="hidden" onchange="previewEditImg(this,'${memoId}','${log.id}')">
+                        </label>
+
+                        <button class="px-3 py-2 rounded-xl text-xs font-black bg-slate-200 text-slate-700 border border-slate-200"
+                          onclick="removeEditImg('${memoId}','${log.id}')">移除圖片</button>
+
+                        <span class="text-[11px] font-bold text-slate-500" id="edit-img-hint-${memoId}-${log.id}">
+                          ${hasImg ? '目前有圖片' : '目前無圖片'}
+                        </span>
+                      </div>
+
+                      <div id="edit-img-preview-box-${memoId}-${log.id}" class="${hasImg ? '' : 'hidden'} mt-2 relative w-24 h-24">
+                        <img id="edit-img-preview-${memoId}-${log.id}" src="${hasImg ? log.img : ''}" class="w-full h-full object-cover rounded-xl border border-slate-200">
+                      </div>
+                    </div>
+
+                    <div class="flex gap-2 mt-3">
+                      <button class="flex-1 py-2 rounded-xl font-black btn-primary active:scale-[0.99] transition-all"
+                        onclick="saveLogEdit('${memoId}','${log.id}')">儲存</button>
+                      <button class="px-4 py-2 rounded-xl font-black btn-soft active:scale-[0.99] transition-all"
+                        onclick="cancelLogEdit('${memoId}','${log.id}')">取消</button>
+                    </div>
                   </div>
                 ` : ``}
               </div>
-
-              ${hasImg ? `<img src="${log.img}" class="mt-2 rounded-xl w-full h-28 object-cover cursor-pointer border border-slate-100" onclick="viewImage('${log.img}')">` : ``}
-
-              ${isMine ? `
-                <div id="log-edit-box-${memoId}-${log.id}" class="hidden mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                  <label class="text-[10px] font-black text-slate-400 block mb-2">編輯內容</label>
-                  <textarea class="w-full text-sm p-3 bg-white rounded-2xl focus:outline-none min-h-[70px] border border-slate-200"
-                    id="log-text-edit-${memoId}-${log.id}"></textarea>
-
-                  <div class="mt-3">
-                    <label class="text-[10px] font-black text-slate-400 block mb-2">編輯圖片（可更換/移除）</label>
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <label class="px-3 py-2 rounded-xl cursor-pointer text-xs font-black bg-indigo-50 text-indigo-800 border border-indigo-100">
-                        選擇圖片
-                        <input type="file" accept="image/*" class="hidden" onchange="previewEditImg(this,'${memoId}','${log.id}')">
-                      </label>
-
-                      <button class="px-3 py-2 rounded-xl text-xs font-black bg-slate-200 text-slate-700 border border-slate-200"
-                        onclick="removeEditImg('${memoId}','${log.id}')">移除圖片</button>
-
-                      <span class="text-[11px] font-bold text-slate-500" id="edit-img-hint-${memoId}-${log.id}">
-                        ${hasImg ? '目前有圖片' : '目前無圖片'}
-                      </span>
-                    </div>
-
-                    <div id="edit-img-preview-box-${memoId}-${log.id}" class="${hasImg ? '' : 'hidden'} mt-2 relative w-24 h-24">
-                      <img id="edit-img-preview-${memoId}-${log.id}" src="${hasImg ? log.img : ''}" class="w-full h-full object-cover rounded-xl border border-slate-200">
-                    </div>
-                  </div>
-
-                  <div class="flex gap-2 mt-3">
-                    <button class="flex-1 py-2 rounded-xl font-black btn-primary active:scale-[0.99] transition-all"
-                      onclick="saveLogEdit('${memoId}','${log.id}')">儲存</button>
-                    <button class="px-4 py-2 rounded-xl font-black btn-soft active:scale-[0.99] transition-all"
-                      onclick="cancelLogEdit('${memoId}','${log.id}')">取消</button>
-                  </div>
-                </div>
-              ` : ``}
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
+      }, (err) => {
+        console.error("logs 監聽錯誤:", err);
+        box.innerHTML = '<p class="text-[10px] text-rose-500 italic text-center">載入備註失敗</p>';
+      });
     }
 
     function renderMemos() {
       memosList.innerHTML = '';
+
+      // ✅ 清掉已不存在任務的 logs 監聽（避免越用越慢）
+      const existingIds = new Set(memos.map(m => m.id));
+      Object.keys(logsUnsubs).forEach(id => {
+        if (!existingIds.has(id)) {
+          logsUnsubs[id]();
+          delete logsUnsubs[id];
+          delete openedLogs[id];
+        }
+      });
 
       memos.forEach(memo => {
         const card = document.createElement('div');
@@ -622,11 +674,34 @@
         `;
 
         memosList.appendChild(card);
-        loadLogs(memo.id);
+        subscribeLogs(memo.id);
       });
     }
 
-    // ====== 掛到 window：給 inline onclick / onchange 用 ======
+    // --- 新增進度（寫入 logs 子集合） ---
+    window.addLogEntry = async (memoId) => {
+      const textEl = document.getElementById(`log-text-${memoId}`);
+      const text = (textEl?.value || '').trim();
+      if (!text) return;
+
+      try {
+        const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
+        await addDoc(logsRef, {
+          text,
+          timestamp: Date.now(),
+          userId: currentUser.uid,
+          userName: currentUser.displayName || '同仁',
+          img: window[`log_img_${memoId}`] || null
+        });
+
+        window.clearLogImg(memoId);
+        textEl.value = '';
+        toggleLogInput(memoId, false);
+      } catch (e) {
+        console.error("送出進度失敗:", e);
+        alert("送出失敗（可能是圖片太大/網路/權限問題），請再試一次");
+      }
+    };
 
     window.toggleLogInput = (id, show) => {
       document.getElementById(`log-input-${id}`)?.classList.toggle('hidden', !show);
@@ -640,10 +715,8 @@
       try {
         const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
         const preview = document.getElementById(`log-preview-${id}`);
-        if (preview) {
-          preview.querySelector('img').src = compressed;
-          preview.classList.remove('hidden');
-        }
+        preview.querySelector('img').src = compressed;
+        preview.classList.remove('hidden');
         window[`log_img_${id}`] = compressed;
         input.value = "";
       } catch (e) {
@@ -653,37 +726,13 @@
     };
 
     window.clearLogImg = (id) => {
-      document.getElementById(`log-preview-${id}`)?.classList.add('hidden');
+      const el = document.getElementById(`log-preview-${id}`);
+      if (el) el.classList.add('hidden');
       window[`log_img_${id}`] = null;
     };
 
-    window.addLogEntry = async (memoId) => {
-      const textEl = document.getElementById(`log-text-${memoId}`);
-      const text = (textEl?.value || "").trim();
-      if (!text) return;
-
-      try {
-        const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs');
-
-        await addDoc(logsRef, {
-          text,
-          timestamp: Date.now(),
-          userId: currentUser.uid,
-          userName: currentUser.displayName || '同仁',
-          img: window[`log_img_${memoId}`] || null
-        });
-
-        window.clearLogImg(memoId);
-        if (textEl) textEl.value = '';
-        window.toggleLogInput(memoId, false);
-        loadLogs(memoId);
-      } catch (e) {
-        console.error("送出進度失敗:", e);
-        alert("送出失敗（可能是圖片太大/網路/權限問題），請再試一次");
-      }
-    };
-
-    window.startEditLog = async (memoId, logId) => {
+    // 編輯：開啟
+    window.startEditLog = (memoId, logId) => {
       const editBox = document.getElementById(`log-edit-box-${memoId}-${logId}`);
       const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
       if (!editBox || !textarea) return;
@@ -712,11 +761,13 @@
         window[`edit_img_mode_${memoId}_${logId}`] = "replace";
         window[`edit_img_data_${memoId}_${logId}`] = compressed;
 
-        document.getElementById(`edit-img-preview-${memoId}-${logId}`)?.setAttribute('src', compressed);
-        document.getElementById(`edit-img-preview-box-${memoId}-${logId}`)?.classList.remove('hidden');
+        const box = document.getElementById(`edit-img-preview-box-${memoId}-${logId}`);
+        const img = document.getElementById(`edit-img-preview-${memoId}-${logId}`);
         const hint = document.getElementById(`edit-img-hint-${memoId}-${logId}`);
-        if (hint) hint.innerText = "已選擇新圖片（儲存後生效）";
 
+        if (img) img.src = compressed;
+        if (box) box.classList.remove('hidden');
+        if (hint) hint.innerText = "已選擇新圖片（儲存後生效）";
         input.value = "";
       } catch (e) {
         console.error("編輯圖片壓縮失敗:", e);
@@ -734,8 +785,10 @@
     };
 
     window.saveLogEdit = async (memoId, logId) => {
-      const textarea = document.getElementById(`log-text-edit-${memoId}-${logId}`);
-      const newText = (textarea?.value || "").trim();
+      const textarea = document.getElementById(`log-text-edit_${memoId}_${logId}`) || document.getElementById(`log-text-edit-${memoId}-${logId}`);
+      if (!textarea) return;
+
+      const newText = textarea.value.trim();
       if (!newText) return alert("內容不能空白");
 
       const mode = window[`edit_img_mode_${memoId}_${logId}`] || "keep";
@@ -744,14 +797,11 @@
       try {
         const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
         const payload = { text: newText };
-
         if (mode === "replace") payload.img = newImg || null;
         if (mode === "remove") payload.img = null;
 
         await updateDoc(logRef, payload);
-
         window.cancelLogEdit(memoId, logId);
-        await loadLogs(memoId);
       } catch (e) {
         console.error("編輯失敗:", e);
         alert("編輯失敗：你只能修改自己發的備註（或權限/網路問題）");
@@ -764,21 +814,19 @@
       try {
         const logRef = doc(db, 'artifacts', appId, 'public', 'data', 'memos', memoId, 'logs', logId);
         await deleteDoc(logRef);
-        await loadLogs(memoId);
       } catch (e) {
         console.error("刪除失敗:", e);
         alert("刪除失敗：你只能刪除自己發的備註（或權限/網路問題）");
       }
     };
 
-    // ✅ 結案：挑照片 -> 壓縮 -> 開啟預覽
+    // ✅ 結案（照片 base64）— 手機也一定會關閉
     window.startCompletion = async (input, id) => {
       const file = input.files?.[0];
       if (!file) return;
 
       try {
         const compressed = await compressImageToDataURL(file, 1280, 1280, 0.75);
-
         pendingCompletionId = id;
         pendingCompletionUrl = compressed;
 
@@ -792,7 +840,6 @@
       }
     };
 
-    // ✅ 結案：確認
     document.getElementById('confirm-completion-btn').onclick = async () => {
       if (!pendingCompletionId) return;
 
@@ -802,14 +849,13 @@
       const id = pendingCompletionId;
       const url = pendingCompletionUrl || null;
 
-      // iOS：先關最穩
+      // ✅ 先關（iOS 最重要）
       modal.classList.add('hidden');
 
       btn.disabled = true;
       const oldText = btn.innerText;
       btn.innerText = "結案中...";
 
-      // 先清狀態，避免殘留
       pendingCompletionId = null;
       pendingCompletionUrl = null;
 
@@ -823,7 +869,6 @@
           imageUrl: url
         });
 
-        // 成功：保險再關一次（避免 iOS 偶發）
         modal.classList.add('hidden');
       } catch (e) {
         console.error("確認結案失敗:", e);
@@ -837,7 +882,6 @@
       }
     };
 
-    // ✅ 結案：取消
     document.getElementById('cancel-completion-btn').onclick = () => {
       document.getElementById('completion-modal').classList.add('hidden');
       pendingCompletionId = null;
@@ -846,7 +890,19 @@
 
     window.deleteMemo = async (id) => {
       if (!confirm("確定要刪除這項公務紀錄嗎？")) return;
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'memos', id));
+
+      try {
+        // 先關掉該 memo 的 logs 監聽
+        if (logsUnsubs[id]) {
+          logsUnsubs[id]();
+          delete logsUnsubs[id];
+          delete openedLogs[id];
+        }
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'memos', id));
+      } catch (e) {
+        console.error("刪除任務失敗:", e);
+        alert("刪除任務失敗（可能權限/網路問題）");
+      }
     };
 
     window.viewImage = (url) => {
@@ -854,7 +910,7 @@
       document.getElementById('full-image-modal').classList.remove('hidden');
     };
 
-    // UI：新增任務
+    // 新增任務 UI
     showAddTaskBtn.onclick = () => {
       addTaskForm.classList.remove('hidden');
       showAddTaskBtn.classList.add('hidden');
@@ -867,7 +923,7 @@
     };
 
     document.getElementById('submit-task-btn').onclick = async () => {
-      const title = (document.getElementById('new-task-title').value || "").trim();
+      const title = (document.getElementById('new-task-title')?.value || '').trim();
       if (!title) return;
 
       try {
@@ -888,11 +944,10 @@
       }
     };
 
-    // 設定 modal
+    // 設定開關
     document.getElementById('settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('hidden');
     document.getElementById('close-settings-btn').onclick = () => document.getElementById('settings-modal').classList.add('hidden');
 
-    // 通知
     function showToast(title, body) {
       const toast = document.createElement('div');
       toast.className = "toast-enter bg-slate-900/90 text-white p-4 rounded-3xl shadow-2xl flex items-start gap-4 border border-white/10 backdrop-blur-md mb-3 pointer-events-auto";
@@ -918,40 +973,17 @@
     }
 
     document.getElementById('system-notification-btn').onclick = async () => {
-      if (!("Notification" in window)) return alert("此裝置不支援系統通知");
-
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        new Notification("系統通知已啟動", { body: "交接清單更新時您將會收到提醒。" });
-        const btn = document.getElementById('system-notification-btn');
-        btn.innerText = "系統通知已開啟";
-        btn.classList.add('bg-emerald-50', 'text-emerald-700');
-      }
-    };
-
-    // Auth
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        currentUser = user;
-        loginScreen.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-        updateUserUI();
-        initDataListener();
+      if ("Notification" in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          new Notification("系統通知已啟動", { body: "交接清單更新時您將會收到提醒。" });
+          const btn = document.getElementById('system-notification-btn');
+          btn.innerText = "系統通知已開啟";
+          btn.classList.add('bg-emerald-50', 'text-emerald-700');
+        }
       } else {
-        currentUser = null;
-        loginScreen.classList.remove('hidden');
-        mainApp.classList.add('hidden');
+        alert("此裝置不支援系統通知");
       }
-    });
-
-    document.getElementById('google-login-btn').onclick = () => {
-      const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider).catch(err => console.error(err));
-    };
-
-    document.getElementById('logout-btn').onclick = () => {
-      signOut(auth);
-      document.getElementById('settings-modal').classList.add('hidden');
     };
   </script>
 </body>
